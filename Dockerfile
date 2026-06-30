@@ -3,7 +3,7 @@ FROM python:3.11-slim
 # Arabic + fallback fonts so matplotlib renders figures correctly when generating
 # at runtime (the baked figures already render fine without this).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        fonts-noto-core fonts-noto-naskh-arabic fonts-dejavu-core \
+        fonts-noto-core fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
