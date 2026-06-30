@@ -1,0 +1,12 @@
+# Don't upload these to Cloud Build
+.git/
+.gitignore
+scratchpad/
+*.log
+.pytest_cache/
+__pycache__/
+*.pyc
+.env
+*.key
+.DS_Store
+# Keep questins_visual/ (baked exam) — do NOT ignore it

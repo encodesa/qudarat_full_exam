@@ -30,9 +30,14 @@ GEO_COLOR = "black"
 GEO_FONT = 16
 
 ARABIC_FONT_CANDIDATES = [
+    # macOS
     "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
     "/System/Library/Fonts/Supplemental/Tahoma.ttf",
     "/System/Library/Fonts/GeezaPro.ttc",
+    # Linux (containers / Cloud Run) — installed via the Dockerfile
+    "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
 ]
 
 _AR_FONT = None
