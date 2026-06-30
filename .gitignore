@@ -1,0 +1,22 @@
+# Generated exam output
+questins_visual/
+full_exam.json
+full_exam.xlsx
+full_exam_checkpoint.jsonl
+DataInterpretation.xlsx
+Geometry.xlsx
+*.pdf
+
+# Scratch / logs
+scratchpad/
+*.log
+.pytest_cache/
+__pycache__/
+*.pyc
+
+# Env / secrets
+.env
+*.key
+
+# OS
+.DS_Store

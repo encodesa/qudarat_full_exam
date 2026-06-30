@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>اختبار القدرات العامة — اختبار كامل</title>
+<style>
+  :root{
+    --bg:#eef1f7; --card:#fff; --text:#1e293b; --muted:#64748b;
+    --accent:#1e3a8a; --accent2:#2563eb; --ok:#16a34a; --bad:#dc2626;
+    --warn:#d97706; --line:#e2e8f0; --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI","Tahoma",Arial,sans-serif;background:var(--bg);color:var(--text)}
+  .wrap{max-width:920px;margin:0 auto;padding:24px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:20px}
+  .panel{background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:20px}
+  .btn{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:12px 26px;font-size:16px;font-weight:700;cursor:pointer}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .btn-ghost{background:#fff;border:1px solid var(--line);color:var(--accent);border-radius:10px;padding:10px 18px;font-weight:700;cursor:pointer}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+  .sec-title{font-size:20px;font-weight:800;color:var(--accent)}
+  .sec-meta{color:var(--muted);font-size:13px}
+  .timer{font-size:20px;font-weight:800;background:#fff;border:2px solid var(--accent2);color:var(--accent2);border-radius:12px;padding:6px 16px;min-width:96px;text-align:center}
+  .timer.warn{border-color:var(--warn);color:var(--warn)}
+  .timer.danger{border-color:var(--bad);color:var(--bad)}
+  .progress{height:8px;background:var(--line);border-radius:8px;overflow:hidden;margin-bottom:18px}
+  .progress > i{display:block;height:100%;background:var(--accent2);width:0;transition:.3s}
+  .q-card{background:var(--card);border-radius:var(--radius);padding:22px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+  .q-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .q-num{font-weight:800;color:var(--accent)}
+  .chip{background:#eff3fb;color:var(--accent2);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700}
+  .chip.kammi{background:#ecfdf5;color:#047857}
+  .chip.lafzi{background:#eef2ff;color:#4338ca}
+  .q-text{font-size:18px;font-weight:700;line-height:2;margin:6px 0 14px}
+  .passage{background:#f8fafc;border-right:3px solid var(--accent2);border-radius:10px;padding:14px 18px;margin-bottom:14px;line-height:2;color:#334155}
+  .q-image-wrap{display:flex;justify-content:center;margin:6px 0 16px}
+  .q-image{max-width:100%;max-height:420px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:6px;display:block}
+  .opt{border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:10px;cursor:pointer;display:flex;gap:12px;align-items:center;transition:.15s}
+  .opt:hover{border-color:var(--accent2)}
+  .opt.sel{border-color:var(--accent2);background:#eff3fb}
+  .opt .lt{font-weight:800;color:var(--accent2);min-width:22px}
+  .footer-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:6px}
+  .note{color:var(--muted);font-size:13px}
+  .hidden{display:none}
+  .err{color:var(--bad);font-weight:700;margin-top:12px}
+  .spinner{display:inline-flex;align-items:center;gap:10px;color:var(--muted)}
+  .dot{width:14px;height:14px;border:3px solid var(--line);border-top-color:var(--accent2);border-radius:50%;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  /* results */
+  .score-big{font-size:46px;font-weight:900;color:var(--accent)}
+  .res-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
+  .badge-ok{color:var(--ok);font-weight:800}
+  .badge-bad{color:var(--bad);font-weight:800}
+  /* review */
+  .review-title{font-size:20px;font-weight:800;color:var(--accent);margin:26px 0 8px}
+  .rv-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px}
+  .rv-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .rv-tag{font-size:13px;font-weight:800;border-radius:20px;padding:3px 12px}
+  .rv-tag.ok{background:#ecfdf5;color:var(--ok)} .rv-tag.bad{background:#fef2f2;color:var(--bad)}
+  .rv-q{font-weight:700;line-height:2;margin-bottom:10px}
+  .rv-opt{border:1px solid var(--line);border-radius:9px;padding:9px 14px;margin-bottom:7px;display:flex;gap:10px;align-items:center}
+  .rv-opt .lt{font-weight:800;min-width:20px}
+  .rv-opt.correct{border-color:var(--ok);background:#ecfdf5}
+  .rv-opt.chosen-bad{border-color:var(--bad);background:#fef2f2}
+  .rv-mark{margin-inline-start:auto;font-weight:800;font-size:13px}
+  .rv-mark.ok{color:var(--ok)} .rv-mark.bad{color:var(--bad)}
+  .rv-explain{background:#f8fafc;border-right:3px solid var(--accent2);border-radius:9px;padding:12px 16px;margin-top:10px;line-height:2;color:#334155}
+  .rv-explain b{color:var(--accent)}
+  .rv-img{max-width:100%;max-height:300px;border:1px solid var(--line);border-radius:10px;padding:6px;display:block;margin:6px auto 12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===== START SCREEN ===== -->
+  <div id="start" class="panel">
+    <h1>اختبار القدرات العامة — اختبار كامل</h1>
+    <div class="sub">خمسة أقسام، كل قسم يجمع بين الأسئلة الكمية واللفظية. بعد إنهاء أي قسم لا يمكن الرجوع إليه.</div>
+    <div id="startBody"><div class="spinner"><span class="dot"></span> جارٍ التحميل…</div></div>
+  </div>
+
+  <!-- ===== EXAM SCREEN ===== -->
+  <div id="exam" class="hidden">
+    <div class="topbar">
+      <div>
+        <div class="sec-title" id="secTitle"></div>
+        <div class="sec-meta" id="secMeta"></div>
+      </div>
+      <div class="timer" id="timer">--:--</div>
+    </div>
+    <div class="progress"><i id="progBar"></i></div>
+    <div id="questions"></div>
+    <div class="footer-actions">
+      <div class="note" id="answeredNote"></div>
+      <button class="btn" id="finishBtn">إنهاء القسم</button>
+    </div>
+  </div>
+
+  <!-- ===== RESULTS SCREEN ===== -->
+  <div id="results" class="hidden panel"></div>
+</div>
+
+<script>
+const AR_DIGITS = ["٠","١","٢","٣","٤","٥","٦","٧","٨","٩"];
+const arNum = n => String(n).split("").map(c => /\d/.test(c) ? AR_DIGITS[+c] : c).join("");
+const OPT_LETTERS = {A:"أ", B:"ب", C:"ج", D:"د"};
+
+let EXAM = null;
+let cur = 0;                 // current section index
+let answers = {};           // {qno: "A"|...}
+let sectionScores = [];     // [{index,title,correct,total}]
+let timerId = null, remaining = 0;
+
+async function boot(){
+  const body = document.getElementById("startBody");
+  try{
+    const r = await fetch("/api/exam");
+    if(r.ok){
+      EXAM = await r.json();
+      renderStart(true);
+    }else{
+      renderStart(false);
+    }
+  }catch(e){ renderStart(false); }
+}
+
+function renderStart(ready){
+  const body = document.getElementById("startBody");
+  if(ready && EXAM && EXAM.sections && EXAM.sections.length){
+    const n = EXAM.sections.length;
+    const tot = EXAM.sections.reduce((a,s)=>a+s.count,0);
+    body.innerHTML = `
+      <p>عدد الأقسام: <b>${arNum(n)}</b> — إجمالي الأسئلة: <b>${arNum(tot)}</b> —
+         زمن كل قسم: <b>${arNum(EXAM.sections[0].time_min)}</b> دقيقة.</p>
+      <ul class="note" style="line-height:2">
+        <li>لكل سؤال إجابة واحدة صحيحة.</li>
+        <li>بعد الضغط على «إنهاء القسم» لا يمكنك الرجوع إليه.</li>
+        <li>عند انتهاء الوقت يُنهى القسم تلقائيًا.</li>
+      </ul>
+      <button class="btn" onclick="startExam()">ابدأ الاختبار</button>
+      <button class="btn-ghost" onclick="regenerate()">توليد اختبار جديد</button>`;
+  }else{
+    body.innerHTML = `
+      <p class="note">لا يوجد اختبار جاهز بعد.</p>
+      <button class="btn" onclick="regenerate()">توليد اختبار</button>
+      <div id="genStatus" class="note" style="margin-top:12px"></div>`;
+  }
+}
+
+async function regenerate(){
+  const st = document.getElementById("genStatus") ||
+    (()=>{const d=document.createElement("div");d.id="genStatus";d.className="note";
+          document.getElementById("startBody").appendChild(d);return d;})();
+  st.innerHTML = `<div class="spinner"><span class="dot"></span> جارٍ توليد الاختبار… قد يستغرق عدة دقائق.</div>`;
+  await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({})});
+  const poll = setInterval(async ()=>{
+    const r = await fetch("/api/generate/status"); const s = await r.json();
+    if(!s.running){
+      clearInterval(poll);
+      if(s.error){ st.innerHTML = `<span class="err">فشل التوليد: ${s.error}</span>`; }
+      else { st.textContent = "تم التوليد. جارٍ التحميل…"; await boot(); }
+    }
+  }, 4000);
+}
+
+function startExam(){
+  cur = 0; answers = {}; sectionScores = [];
+  document.getElementById("start").classList.add("hidden");
+  document.getElementById("exam").classList.remove("hidden");
+  loadSection();
+}
+
+function loadSection(){
+  const sec = EXAM.sections[cur];
+  document.getElementById("secTitle").textContent =
+    `${sec.title} — كمي ولفظي`;
+  document.getElementById("secMeta").textContent =
+    `عدد الأسئلة: ${arNum(sec.count)}   ·   القسم ${arNum(sec.index)} من ${arNum(EXAM.sections.length)}`;
+  const box = document.getElementById("questions");
+  box.innerHTML = "";
+  sec.questions.forEach(q => box.appendChild(renderQuestion(q)));
+  updateAnsweredNote();
+  document.getElementById("finishBtn").textContent =
+    (cur === EXAM.sections.length - 1) ? "إنهاء الاختبار" : "إنهاء القسم";
+  window.scrollTo(0,0);
+  startTimer(sec.time_min * 60);
+}
+
+function renderQuestion(q){
+  const isK = (q.section_name === "Quantitative");
+  const card = document.createElement("div");
+  card.className = "q-card";
+  let html = `<div class="q-head">
+      <span class="q-num">السؤال ${arNum(q.qno)}</span>
+      <span class="chip ${isK?'kammi':'lafzi'}">${isK?'كمي':'لفظي'}</span>
+    </div>`;
+  if(q.context) html += `<div class="passage">${escapeHtml(q.context)}</div>`;
+  html += `<div class="q-text">${escapeHtml(q.question)}</div>`;
+  if(q.image_path){
+    html += `<div class="q-image-wrap"><img class="q-image" src="/${q.image_path}" alt="figure" onerror="this.parentNode.remove()"></div>`;
+  }
+  ["A","B","C","D"].forEach(L=>{
+    const v = q.options[L];
+    if(!v) return;
+    html += `<div class="opt" data-q="${q.qno}" data-opt="${L}" onclick="pick(${q.qno},'${L}',this)">
+        <span class="lt">${OPT_LETTERS[L]}</span><span>${escapeHtml(v)}</span></div>`;
+  });
+  card.innerHTML = html;
+  return card;
+}
+
+function pick(qno, L, el){
+  answers[qno] = L;
+  el.parentNode.querySelectorAll(".opt").forEach(o=>o.classList.remove("sel"));
+  el.classList.add("sel");
+  updateAnsweredNote();
+}
+
+function updateAnsweredNote(){
+  const sec = EXAM.sections[cur];
+  const done = sec.questions.filter(q=>answers[q.qno]).length;
+  document.getElementById("answeredNote").textContent =
+    `تمت الإجابة على ${arNum(done)} من ${arNum(sec.count)}`;
+  document.getElementById("progBar").style.width = (100*done/sec.count)+"%";
+}
+
+function startTimer(secs){
+  remaining = secs;
+  const el = document.getElementById("timer");
+  clearInterval(timerId);
+  const tick = ()=>{
+    const m = Math.floor(remaining/60), s = remaining%60;
+    el.textContent = `${arNum(String(m).padStart(2,"0"))}:${arNum(String(s).padStart(2,"0"))}`;
+    el.classList.toggle("warn", remaining<=120 && remaining>30);
+    el.classList.toggle("danger", remaining<=30);
+    if(remaining<=0){ clearInterval(timerId); finishSection(true); return; }
+    remaining--;
+  };
+  tick();
+  timerId = setInterval(tick, 1000);
+}
+
+document.getElementById("finishBtn").addEventListener("click", ()=>finishSection(false));
+
+function finishSection(auto){
+  if(!auto){
+    const sec = EXAM.sections[cur];
+    const left = sec.count - sec.questions.filter(q=>answers[q.qno]).length;
+    if(left>0 && !confirm(`لم تُجب على ${arNum(left)} سؤال. إنهاء القسم نهائيًا دون رجوع؟`)) return;
+  }
+  clearInterval(timerId);
+  const sec = EXAM.sections[cur];
+  let correct = 0;
+  sec.questions.forEach(q=>{ if(answers[q.qno] && answers[q.qno]===q.correct) correct++; });
+  sectionScores.push({index:sec.index, title:sec.title, correct, total:sec.count});
+  cur++;
+  if(cur < EXAM.sections.length){ loadSection(); }
+  else { showResults(); }
+}
+
+function showResults(){
+  document.getElementById("exam").classList.add("hidden");
+  const totC = sectionScores.reduce((a,s)=>a+s.correct,0);
+  const totT = sectionScores.reduce((a,s)=>a+s.total,0);
+  const pct = totT ? Math.round(100*totC/totT) : 0;
+  let html = `<h1>النتيجة النهائية</h1>
+    <div class="score-big">${arNum(totC)} / ${arNum(totT)} <span style="font-size:22px;color:var(--muted)">(${arNum(pct)}%)</span></div>
+    <div style="margin-top:18px">`;
+  sectionScores.forEach(s=>{
+    html += `<div class="res-row"><span>${s.title}</span>
+      <span class="${s.correct/s.total>=0.5?'badge-ok':'badge-bad'}">${arNum(s.correct)} / ${arNum(s.total)}</span></div>`;
+  });
+  html += `</div>
+    <div style="margin-top:18px">
+      <button class="btn-ghost" onclick="toggleReview()" id="reviewBtn">مراجعة الإجابات</button>
+      <button class="btn" onclick="location.reload()">اختبار جديد</button>
+    </div>
+    <div id="review" class="hidden"></div>`;
+  const r = document.getElementById("results");
+  r.innerHTML = html; r.classList.remove("hidden");
+  window.scrollTo(0,0);
+}
+
+function toggleReview(){
+  const box = document.getElementById("review");
+  const btn = document.getElementById("reviewBtn");
+  if(!box.classList.contains("hidden")){
+    box.classList.add("hidden"); btn.textContent = "مراجعة الإجابات"; return;
+  }
+  if(!box.dataset.built){ box.innerHTML = buildReview(); box.dataset.built = "1"; }
+  box.classList.remove("hidden"); btn.textContent = "إخفاء المراجعة";
+}
+
+function buildReview(){
+  let html = `<div class="review-title">مراجعة الإجابات</div>`;
+  EXAM.sections.forEach(sec=>{
+    sec.questions.forEach(q=>{
+      const chosen = answers[q.qno] || null;
+      const right = chosen && chosen === q.correct;
+      html += `<div class="rv-card">
+        <div class="rv-head">
+          <span class="q-num">السؤال ${arNum(q.qno)}</span>
+          <span class="rv-tag ${right?'ok':'bad'}">${right?'صحيحة':(chosen?'خاطئة':'لم تُجب')}</span>
+        </div>`;
+      if(q.context) html += `<div class="passage">${escapeHtml(q.context)}</div>`;
+      html += `<div class="rv-q">${escapeHtml(q.question)}</div>`;
+      if(q.image_path) html += `<img class="rv-img" src="/${q.image_path}" onerror="this.remove()">`;
+      ["A","B","C","D"].forEach(L=>{
+        const v = q.options[L]; if(!v) return;
+        const isCorrect = (L === q.correct);
+        const isChosenBad = (chosen === L && !isCorrect);
+        let cls = "rv-opt"; if(isCorrect) cls += " correct"; else if(isChosenBad) cls += " chosen-bad";
+        let mark = "";
+        if(isCorrect) mark = `<span class="rv-mark ok">الإجابة الصحيحة</span>`;
+        else if(isChosenBad) mark = `<span class="rv-mark bad">إجابتك</span>`;
+        html += `<div class="${cls}"><span class="lt">${OPT_LETTERS[L]}</span><span>${escapeHtml(v)}</span>${mark}</div>`;
+      });
+      if(q.explanation) html += `<div class="rv-explain"><b>الشرح:</b> ${escapeHtml(q.explanation)}</div>`;
+      html += `</div>`;
+    });
+  });
+  return html;
+}
+
+function escapeHtml(s){
+  return String(s==null?"":s).replace(/[&<>"]/g, c=>(
+    {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+}
+
+boot();
+</script>
+</body>
+</html>
