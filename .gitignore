@@ -25,8 +25,9 @@ scratchpad/
 *.log
 logo_temp_*.png
 
-# generated exam artifacts (regenerable via generate_full_exam.py)
-questins_visual/
+# the deployed image ships the exam (Dockerfile COPY . .), so track the exam
+# manifest + figures; ignore only the transient checkpoint/workbook.
+questins_visual/full_exam_checkpoint.jsonl
 results/
 
 # duplicated / archive dirs

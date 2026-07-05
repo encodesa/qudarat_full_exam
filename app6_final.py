@@ -1912,13 +1912,21 @@ def _verbal_ambiguous(q2: Dict[str, Any]) -> bool:
     full = (f"النص: {ctx}\n\n" if ctx else "") + ques
     correct_lbl = str(q2.get("CorrectOption", "")).strip().upper()
     answer = clean_text(q2.get("Answer", ""))
+    # Check the 3 non-correct options CONCURRENTLY (was serial -> 3x slower).
+    cands = []
     for L in ("A", "B", "C", "D"):
         if L == correct_lbl:
             continue
         opt = clean_text(q2.get(f"Option{L}", ""))
-        if not opt or opt == "[Option not available]":
-            continue
-        if _distractor_also_valid(full, opt, answer):
+        if opt and opt != "[Option not available]":
+            cands.append((L, opt))
+    if not cands:
+        return False
+    with ThreadPoolExecutor(max_workers=len(cands)) as ex:
+        verdicts = list(ex.map(
+            lambda c: (c[0], c[1], _distractor_also_valid(full, c[1], answer)), cands))
+    for L, opt, bad in verdicts:
+        if bad:
             log(f"[Verbal] ambiguous: option {L} ('{opt}') also defensible", level="warning")
             return True
     return False
