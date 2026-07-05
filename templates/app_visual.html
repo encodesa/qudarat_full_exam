@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>منصة القدرات — مولّد بالصور</title>
+<style>
+  :root{
+    --bg:#eef1f7; --card:#fff; --text:#1e293b; --muted:#64748b;
+    --accent:#1e3a8a; --accent2:#2563eb; --ok:#16a34a; --bad:#dc2626;
+    --line:#e2e8f0; --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI","Tahoma",Arial,sans-serif;background:var(--bg);color:var(--text)}
+  .wrap{max-width:1100px;margin:0 auto;padding:24px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:20px}
+  .panel{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:20px}
+  .row{display:flex;flex-wrap:wrap;gap:14px;align-items:end}
+  .field{display:flex;flex-direction:column;gap:6px;min-width:180px;flex:1}
+  label{font-size:13px;color:var(--muted);font-weight:600}
+  select,input{padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:#fff;font-family:inherit}
+  .btn{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:12px 22px;font-size:15px;font-weight:700;cursor:pointer}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  .spinner{display:none;align-items:center;gap:10px;color:var(--muted);margin-top:14px}
+  .spinner.on{display:flex}
+  .dot{width:14px;height:14px;border:3px solid var(--line);border-top-color:var(--accent2);border-radius:50%;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .q-card{background:var(--card);border-radius:var(--radius);padding:22px;margin-bottom:18px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+  .q-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .q-num{font-weight:800;color:var(--accent)}
+  .chip{background:#eff3fb;color:var(--accent2);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700}
+  .q-text{font-size:18px;font-weight:700;line-height:2;margin:6px 0 16px}
+  .q-image-wrap{display:flex;justify-content:center;margin:6px 0 18px}
+  .q-image-box{position:relative;display:inline-block}
+  .q-image{max-width:100%;max-height:420px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:6px;display:block}
+  .img-badge{position:absolute;top:8px;left:8px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;color:#fff}
+  .img-badge.mpl{background:#0f766e}
+  .img-badge.gem{background:#7c3aed}
+  .passage{background:#f8fafc;border-right:3px solid var(--accent2);border-radius:10px;padding:14px 18px;margin-bottom:16px;line-height:2;color:#334155}
+  .opt{border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:.15s}
+  .opt:hover{border-color:var(--accent2)}
+  .opt.sel{border-color:var(--accent2);background:#eff3fb}
+  .opt.correct{border-color:var(--ok);background:#ecfdf5}
+  .opt.wrong{border-color:var(--bad);background:#fef2f2}
+  .reveal{font-size:13px;color:var(--muted);margin:-4px 6px 12px;line-height:1.8}
+  .actions{display:flex;gap:12px;margin-top:10px}
+  .btn-ghost{background:#fff;border:1px solid var(--line);color:var(--accent);border-radius:10px;padding:10px 18px;font-weight:700;cursor:pointer}
+  .err{color:var(--bad);font-weight:700;margin-top:12px}
+  .empty{color:var(--muted);text-align:center;padding:40px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>منصة القدرات — مولّد الأسئلة بالصور</h1>
+  <div class="sub">توليد أسئلة قدرات مع رسومات بيانية وأشكال هندسية تلقائيًا</div>
+
+  <div class="panel">
+    <div class="row">
+      <div class="field">
+        <label>القسم</label>
+        <select id="section">
+          <option value="Quantitative">الكمي</option>
+          <option value="Verbal">اللفظي</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>الفئة</label>
+        <select id="category"><option value="ANY">الكل</option></select>
+      </div>
+      <div class="field">
+        <label>الفئة الفرعية</label>
+        <select id="subcat"><option value="ANY">الكل</option></select>
+      </div>
+      <div class="field">
+        <label>اللغة</label>
+        <select id="lang">
+          <option value="Arabic">العربية</option>
+          <option value="English">English</option>
+        </select>
+      </div>
+      <div class="field" style="max-width:120px">
+        <label>عدد الأسئلة</label>
+        <input id="num" type="number" min="1" max="20" value="3">
+      </div>
+      <button class="btn" id="genBtn" onclick="generate()">🚀 توليد</button>
+    </div>
+    <div class="spinner" id="spin"><div class="dot"></div><span>جارٍ التوليد ورسم الأشكال… قد يستغرق دقيقة أو أكثر.</span></div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div id="out"><div class="empty">اختر الإعدادات واضغط «توليد».</div></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const LETTER_AR = {A:'أ',B:'ب',C:'ج',D:'د'};
+let QUESTIONS = [], ANSWERS = {};
+
+async function loadOptions(){
+  const sec = $('section').value;
+  const lang = $('lang').value;
+  const r = await fetch('/api/options?section='+encodeURIComponent(sec)+'&lang='+encodeURIComponent(lang));
+  const d = await r.json();
+  const opts = d.options || {};
+  const cat = $('category');
+  cat.innerHTML = '<option value="ANY">الكل</option>';
+  Object.keys(opts).forEach(c => cat.innerHTML += `<option value="${c}">${c}</option>`);
+  cat._opts = opts;
+  loadSubcats();
+}
+function loadSubcats(){
+  const opts = $('category')._opts || {};
+  const c = $('category').value;
+  const sc = $('subcat');
+  sc.innerHTML = '<option value="ANY">الكل</option>';
+  (opts[c]||[]).forEach(s => sc.innerHTML += `<option value="${s}">${s}</option>`);
+}
+$('section').onchange = loadOptions;
+$('lang').onchange = loadOptions;
+$('category').onchange = loadSubcats;
+
+function val(q,k){const v=q[k];return (v==null||String(v).toLowerCase()==='nan')?'':String(v);}
+function imgBadge(m){
+  if(m==='matplotlib') return '<span class="img-badge mpl">📊 matplotlib</span>';
+  if(m==='gemini') return '<span class="img-badge gem">✨ Gemini</span>';
+  return '';
+}
+
+async function generate(){
+  $('err').textContent='';
+  $('genBtn').disabled=true; $('spin').classList.add('on');
+  $('out').innerHTML='';
+  try{
+    const body = {
+      section:$('section').value, category:$('category').value,
+      subcat:$('subcat').value, lang:$('lang').value, num:$('num').value
+    };
+    const r = await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d = await r.json();
+    if(d.error){ $('err').textContent='خطأ: '+d.error; }
+    QUESTIONS = d.questions || []; ANSWERS = {};
+    render();
+  }catch(e){ $('err').textContent='تعذّر التوليد: '+e; }
+  finally{ $('genBtn').disabled=false; $('spin').classList.remove('on'); }
+}
+
+function render(){
+  if(!QUESTIONS.length){ $('out').innerHTML='<div class="empty">لم يتم توليد أسئلة. جرّب إعدادات أخرى.</div>'; return; }
+  let html='';
+  QUESTIONS.forEach((q,i)=>{
+    const ctx=val(q,'Context'), img=val(q,'ImagePath');
+    let opts='';
+    ['A','B','C','D'].forEach(l=>{
+      const t=val(q,'Option'+l); if(!t) return;
+      opts+=`<div class="opt" id="o${i}${l}" onclick="pick(${i},'${l}')"><span>${LETTER_AR[l]}) ${t}</span></div>`;
+    });
+    html+=`<div class="q-card">
+      <div class="q-head"><span class="q-num">سؤال ${i+1}</span>
+      <span class="chip">${val(q,'Sub-Category')||val(q,'Category')}</span></div>
+      ${ctx?`<div class="passage">${ctx}</div>`:''}
+      <div class="q-text">${val(q,'Question')}</div>
+      ${img?`<div class="q-image-wrap">
+        <div class="q-image-box">
+          <img class="q-image" src="/${encodeURI(img)}" alt="figure">
+          ${imgBadge(val(q,'RenderMethod'))}
+        </div></div>`:''}
+      ${opts}
+      <div class="reveal" id="r${i}" style="display:none"></div>
+    </div>`;
+  });
+  $('out').innerHTML=html;
+}
+
+function pick(i,l){
+  if(ANSWERS[i]!=null) return; // lock after answer
+  ANSWERS[i]=l;
+  const q=QUESTIONS[i];
+  const correct=val(q,'CorrectOption').toUpperCase();
+  ['A','B','C','D'].forEach(x=>{
+    const el=document.getElementById('o'+i+x); if(!el) return;
+    if(x===correct) el.classList.add('correct');
+    else if(x===l) el.classList.add('wrong');
+  });
+  const rat = val(q,'GenRationale_'+l) || val(q,'Rationale');
+  const rEl=document.getElementById('r'+i);
+  rEl.style.display='block';
+  rEl.textContent = (l===correct?'✅ إجابة صحيحة. ':'❌ إجابة خاطئة. ')+(rat||'');
+}
+
+loadOptions();
+</script>
+</body>
+</html>

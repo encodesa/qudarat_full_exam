@@ -73,6 +73,29 @@ def test_western_digits_currency():
     assert all("SR" in v for v in out.values()), out
 
 
+def test_q3_bare_number_ask_gets_no_stray_percent():
+    # Reviewer Q3: "if 30% of a number = 90, what is THE NUMBER?" The givens
+    # mention "%", but the ask is for a plain number -> options must stay bare.
+    out = _opts({
+        "correct": "٣٠٠",
+        "options": {"A": "٢٧٠", "B": "٢٧", "C": "٣٠", "D": "٣٠٠"},
+        "question": "إذا كان ٣٠٪ من عدد يساوي ٩٠، فما هذا العدد؟",
+    })
+    assert a.options_unit_homogeneous(out)
+    assert all("%" not in v and "٪" not in v for v in out.values()), out
+    assert all(not a.extract_unit_from_answer(v) for v in out.values()), out
+
+
+def test_percent_ask_gets_percent_unit():
+    out = _opts({
+        "correct": "٥٠",
+        "options": {"A": "٥٠", "B": "١١", "C": "٢٢", "D": "١٧"},
+        "question": "ما النسبة المئوية للأرز؟",
+    })
+    assert a.options_unit_homogeneous(out)
+    assert all("%" in v for v in out.values()), out
+
+
 def test_extract_unit_arabic_and_latin():
     assert a.extract_unit_from_answer("٥ سم") == "سم"
     assert a.extract_unit_from_answer("586.5 ريالات") == "ريال"

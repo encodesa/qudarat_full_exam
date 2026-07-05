@@ -131,6 +131,38 @@ def load_blueprint(sheet: str = DEFAULT_SHEET, lang: str = "Arabic",
     return tasks
 
 
+# Canonical real-Qudrat proportions (weights sum need not be 100; scaled to the
+# requested total). Verbal-leaning like the real GAT, Reading Comprehension and
+# Algebra properly represented (the authored sheet under-weighted both).
+# Each entry: (section, English category, subcat, ar_section, ar_subcat, weight).
+BUILTIN_WEIGHTS = [
+    # --- Verbal (~55%) ---
+    ("Verbal", "Reading Comprehension", "ANY", "لفظي", "استيعاب المقروء", 18),
+    ("Verbal", "Analogies & Word Relationships", "ANY", "لفظي", "تناظر لفظي", 15),
+    ("Verbal", "Sentence Completion", "ANY", "لفظي", "إكمال جمل", 14),
+    ("Verbal", "Analogies & Word Relationships", "ANY", "لفظي", "المفردة الشاذة", 5),
+    # --- Quant (~45%) ---
+    ("Quantitative", "Arithmetic", "ANY", "كمي", "الحساب", 16),
+    ("Quantitative", "Algebra", "ANY", "كمي", "الجبر", 10),
+    ("Quantitative", "Geometry", "ANY", "كمي", "الهندسة", 9),
+    ("Quantitative", "Data Interpretation & Reasoning", "Tables/Charts/Graphs",
+     "كمي", "الإحصاء وتفسير البيانات", 8),
+]
+
+
+def builtin_blueprint(total: int = 95, lang: str = "Arabic") -> List[GenTask]:
+    """A balanced, real-Qudrat-shaped blueprint scaled to `total` questions.
+    Use instead of the authored xlsx when you want proportional coverage of every
+    section (including Reading Comprehension and Algebra, which the sheet skimps)."""
+    wsum = sum(w[-1] for w in BUILTIN_WEIGHTS)
+    tasks = []
+    for section, cat, sub, ar_sec, ar_sub, w in BUILTIN_WEIGHTS:
+        count = max(1, round(total * w / wsum))
+        tasks.append(GenTask(section=section, category=cat, subcat=sub, count=count,
+                             lang=lang, ar_section=ar_sec, ar_subcat=ar_sub))
+    return tasks
+
+
 def summarize(tasks: List[GenTask]) -> dict:
     total = sum(t.count for t in tasks)
     by_section = Counter()

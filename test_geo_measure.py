@@ -102,6 +102,57 @@ def test_query_dispatch_ratio():
     assert abs(r - 2.0) < EPS
 
 
+def _triangle_fig():
+    # أ(0,0) ب(15,0) ج(near top): a 9,12,15-ish triangle placed by coordinates.
+    return gk.solve([
+        {"op": "point", "name": "أ", "x": 0, "y": 0},
+        {"op": "point", "name": "ب", "x": 15, "y": 0},
+        {"op": "point", "name": "ج", "x": 15, "y": 9},  # side ب-ج = 9
+    ])
+
+
+def test_verify_figure_accepts_matching_labels():
+    import geo_scenarios as gs
+    fig = _triangle_fig()
+    spec = {
+        "answer": "36",  # not cross-checked here (perimeter would be ~44); use a side op
+        "measure": {"op": "length", "a": "ب", "b": "ج"},
+        "annotations": [
+            {"type": "side", "a": "ب", "b": "ج", "text": "٩"},   # matches figure (9)
+        ],
+    }
+    measured = gm.query(fig, spec["measure"])
+    spec["answer"] = "9"
+    ok, reason = gs._verify_figure(fig, spec, measured)
+    assert ok, reason
+
+
+def test_verify_figure_rejects_label_contradicting_figure():
+    import geo_scenarios as gs
+    fig = _triangle_fig()
+    # The stem/label claims side ب-ج = 13, but the figure draws it as 9.
+    spec = {
+        "answer": "9",
+        "measure": {"op": "length", "a": "ب", "b": "ج"},
+        "annotations": [
+            {"type": "side", "a": "ب", "b": "ج", "text": "١٣"},  # WRONG vs figure
+        ],
+    }
+    measured = gm.query(fig, spec["measure"])
+    ok, reason = gs._verify_figure(fig, spec, measured)
+    assert not ok and "label" in reason, reason
+
+
+def test_verify_figure_rejects_answer_not_matching_measured():
+    import geo_scenarios as gs
+    fig = _triangle_fig()
+    spec = {"answer": "99", "measure": {"op": "length", "a": "ب", "b": "ج"},
+            "annotations": []}
+    measured = gm.query(fig, spec["measure"])  # == 9
+    ok, reason = gs._verify_figure(fig, spec, measured)
+    assert not ok and "answer" in reason, reason
+
+
 if __name__ == "__main__":
     import sys
     sys.exit(pytest.main([__file__, "-q"]))

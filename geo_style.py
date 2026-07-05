@@ -30,14 +30,9 @@ GEO_COLOR = "black"
 GEO_FONT = 16
 
 ARABIC_FONT_CANDIDATES = [
-    # macOS
     "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
     "/System/Library/Fonts/Supplemental/Tahoma.ttf",
     "/System/Library/Fonts/GeezaPro.ttc",
-    # Linux (containers / Cloud Run) — installed via the Dockerfile
-    "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf",
-    "/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
 ]
 
 _AR_FONT = None
@@ -157,7 +152,7 @@ def _seg_push_dir(px, py, a, b):
     return unit(vx, vy)
 
 
-def vertex_labels(ax, items, cen, span, gap=0.13, segments=None):
+def vertex_labels(ax, items, cen, span, gap=0.13, segments=None, circles=None):
     """Place several vertex labels at once, nudging apart any that collide AND
     pushing them off any drawn segment they land on.
 
@@ -165,21 +160,38 @@ def vertex_labels(ax, items, cen, span, gap=0.13, segments=None):
     from the centroid; pairs closer than a minimum separation are spread further
     out, and labels sitting on a line/edge are pushed further along their outward
     ray until clear (fixes vertex letters interlocking with figure lines).
+
+    `circles` is an optional list of (center_xy, r). A vertex sitting ON a circle
+    gets its label pushed radially OUTSIDE that circle, so labels never land on
+    the arc (a radius endpoint would otherwise be pushed tangentially along it).
     """
     segments = segments or []
+    circles = circles or []
 
     def _centroid_dir(px, py):
         ux, uy = unit(px - cen[0], py - cen[1])
         return (ux, uy) if (ux or uy) else (0.0, 1.0)
 
+    def _on_circle(px, py):
+        """Return (center, r) of a circle this point lies on, else None."""
+        for cc, r in circles:
+            if abs(math.hypot(px - cc[0], py - cc[1]) - r) < 0.06 * max(r, 1.0):
+                return cc, r
+        return None
+
     def _outward_dir(px, py):
         """Pick where to put a vertex label:
+        - point ON a circle -> radially outward from the circle center (beyond arc);
         - polygon vertex (edges span an angle) -> into the angular gap, away from edges;
         - point ON a line (edges collinear, e.g. a transversal or an extended base)
           -> PERPENDICULAR to the line, on the side away from the centroid, so the
           label never sits on top of the line;
         - isolated point -> radially outward from the centroid.
         """
+        oc = _on_circle(px, py)
+        if oc is not None:
+            cc, _r = oc
+            return unit(px - cc[0], py - cc[1]) or _centroid_dir(px, py)
         dirs = []
         for a, b in segments:
             for end, other in ((a, b), (b, a)):
@@ -254,12 +266,20 @@ def vertex_labels(ax, items, cen, span, gap=0.13, segments=None):
                 fontsize=GEO_FONT, color=GEO_COLOR)
 
 
-def side_label(ax, p1, p2, label, cen, gap=0.08):
+def side_label(ax, p1, p2, label, cen, gap=0.14):
     if not label:
         return
     mx, my = (p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2
-    nx, ny = unit(mx - cen[0], my - cen[1])
-    span = math.hypot(p2[0] - p1[0], p2[1] - p1[1]) or 1.0
+    dx, dy = p2[0] - p1[0], p2[1] - p1[1]
+    span = math.hypot(dx, dy) or 1.0
+    ux, uy = dx / span, dy / span
+    # Offset PERPENDICULAR to the segment (not along it), on the side away from the
+    # centroid. The old outward-from-centroid offset put a radius/edge label ON the
+    # line (a radius points away from the centre, so it slid along itself).
+    nx, ny = -uy, ux
+    cx, cy = mx - cen[0], my - cen[1]
+    if nx * cx + ny * cy < 0:                 # face away from the figure's centre
+        nx, ny = -nx, -ny
     ax.text(mx + nx * gap * span, my + ny * gap * span, ar(str(label)),
             ha="center", va="center", fontsize=GEO_FONT - 1, color=GEO_COLOR)
 
@@ -302,6 +322,19 @@ def finalize(fig, ax, out_path, margin=0.22):
     ax.margins(margin)
     ax.relim()
     ax.autoscale_view()
+    # autoscale only sees data artists (lines/patches), NOT text — a vertex label
+    # pushed outward (e.g. straight up from a point at the circle's top) can sit
+    # beyond the limits and get clipped at the image edge. Expand the limits to
+    # include every label position, then pad, so no label is ever cut off.
+    x0, x1 = ax.get_xlim()
+    y0, y1 = ax.get_ylim()
+    for t in ax.texts:
+        tx, ty = t.get_position()
+        x0, x1 = min(x0, tx), max(x1, tx)
+        y0, y1 = min(y0, ty), max(y1, ty)
+    pad = 0.08 * max(x1 - x0, y1 - y0, 1e-6)
+    ax.set_xlim(x0 - pad, x1 + pad)
+    ax.set_ylim(y0 - pad, y1 + pad)
     fig.tight_layout()
     # pad_inches keeps outward labels from being clipped at the image edge.
     fig.savefig(str(out_path), bbox_inches="tight", pad_inches=0.25)

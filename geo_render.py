@@ -148,7 +148,8 @@ def render_construction(fig: Figure, annotations: Optional[List[dict]] = None,
         for an in annotations:
             if an.get("type") == "segment":
                 segs.append((fig.pt(an["a"]).xy, fig.pt(an["b"]).xy))
-        S.vertex_labels(ax, label_items, cen, span, segments=segs)
+        circs = [(fig.pt(c.center).xy, c.r) for c in fig.circles.values()]
+        S.vertex_labels(ax, label_items, cen, span, segments=segs, circles=circs)
 
         # --- annotations (given measurements only) ---
         for an in annotations:

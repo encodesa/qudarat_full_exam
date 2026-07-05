@@ -99,7 +99,4 @@ def serve_image(relpath):
 
 
 if __name__ == "__main__":
-    import os
-    # Cloud Run / containers inject $PORT (8080). Local dev falls back to 8506.
-    port = int(os.getenv("PORT", "8506"))
-    app.run(debug=False, port=port, host="0.0.0.0", threaded=True)
+    app.run(debug=True, port=8506, host="0.0.0.0", threaded=True)

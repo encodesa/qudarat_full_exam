@@ -62,30 +62,10 @@ except ImportError:
 if not os.getenv("GOOGLE_API_KEY") and os.getenv("GEMINI_API_KEY"):
     os.environ["GOOGLE_API_KEY"] = os.environ["GEMINI_API_KEY"]
 
-# Lazy client: importing this module must NOT require an API key, so a deployment
-# that only SERVES a pre-generated exam boots without one. The key is required only
-# when actually calling the model (generation). Access via _client().
-_client_obj = None
+if not os.getenv("GOOGLE_API_KEY"):
+    raise EnvironmentError("GOOGLE_API_KEY not set.")
 
-
-def _client():
-    global _client_obj
-    if _client_obj is None:
-        key = os.getenv("GOOGLE_API_KEY")
-        if not key:
-            raise EnvironmentError(
-                "GOOGLE_API_KEY (or GEMINI_API_KEY) not set — required for generation.")
-        _client_obj = genai.Client(api_key=key)
-    return _client_obj
-
-
-class _LazyClient:
-    """Proxy so existing `client.models...` call sites work unchanged."""
-    def __getattr__(self, name):
-        return getattr(_client(), name)
-
-
-client = _LazyClient()
+client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
 # Limit concurrent Gemini API calls to avoid hitting rate limits (429).
 # gemini-2.5-pro has a low RPM cap; this semaphore ensures at most
@@ -116,6 +96,9 @@ GEMINI_CALL_TIMEOUT_MS = int(os.getenv("GEMINI_CALL_TIMEOUT_MS", "150000"))
 DISTRACTOR_TEMPERATURE = 0.35
 DISTRACTOR_MAX_RETRIES = 2
 DISTRACTOR_TOPUP_TRIES = 10
+# Deterministic backstop: after distractors are built, verify none of them is ALSO
+# a correct answer to the question (the "two options are both right" reviewer bug).
+DISTRACTOR_VERIFY = os.getenv("DISTRACTOR_VERIFY", "1") not in ("0", "false", "False")
 
 SOLVER_MODELS = [
     {"name": "gemini-2.5-flash", "temperature": 0.0},
@@ -335,7 +318,10 @@ def system_prompt_quant(lang: str) -> str:
         "- Use gender-neutral wording (e.g., \"a person\", \"the student\", \"someone\").\n"
         "- Use culturally neutral contexts (NO nationality, tribe, religion, stereotypes).\n"
         "- Avoid cultural bias entirely.\n"
-        "- If using exponents, format them as ^ (e.g., x^2, 3^4).\n"
+        "- Exponents: use ^ (e.g., x^2, 3^4) — never the words 'squared'/'مربع' or a "
+        "raised digit. The interface renders ^n as a proper superscript.\n"
+        "- Square roots: use the √ symbol ONLY (e.g., √144, √(x+1)). NEVER write the "
+        "word 'جذر', 'الجذر التربيعي', 'sqrt', or 'root'.\n"
         "- If using degrees, always include the ° symbol (e.g., 30°, 45°, 90°).\n"
         "- DO NOT generate multiple-choice options.\n"
         "- DO NOT explain the solution.\n"
@@ -360,7 +346,7 @@ def system_prompt_quant(lang: str) -> str:
             "Language-specific:\n"
             "- Write the question ONLY in Modern Standard Arabic.\n"
             "- Use Arabic-Indic digits (٠١٢٣٤٥٦٧٨٩) for all numerals.\n"
-            "- Keep math symbols standard: + - × ÷ = ^ ° ( ) .\n"
+            "- Keep math symbols standard: + - × ÷ = ^ √ ° ( ) . Use √ for roots.\n"
         )
     return common_rules + "Language-specific:\n- Write the question in English.\n"
 
@@ -410,6 +396,7 @@ STRICT REQUIREMENTS:
 - Use gender-neutral and culturally neutral phrasing.
 - Avoid any cultural references, stereotypes, or bias.
 - If a question uses exponents, write them using ^ notation (e.g., x^2, 5^3).
+- Square roots: use the √ symbol ONLY (e.g., √144); never the word 'جذر'/'sqrt'/'root'.
 - If a question uses angles, use the ° symbol (e.g., 30°, 60°, 120°).
 - DO NOT include answer choices.
 - DO NOT explain the reasoning or steps.
@@ -1126,7 +1113,7 @@ def answers_match(a: str, b: str, tol: float = 1e-3) -> bool:
 def solve_with_gemini(question_text: str, model_name: str, temperature: float = 0.0) -> str:
     solve_prompt = (
         "Solve the following quantitative problem and return ONLY the final answer.\n"
-        "- Use ^ notation for exponents (e.g., x^2, 3^4).\n"
+        "- Use ^ notation for exponents (e.g., x^2, 3^4) and √ for roots (e.g., √144).\n"
         "- Use the ° symbol for degrees (e.g., 30°, 60°).\n"
         "- Do NOT rewrite the question.\n\n"
         f"{question_text}"
@@ -1620,16 +1607,54 @@ def _unit_from_question(question: str) -> Optional[str]:
             return u
     return None
 
+# What the QUESTION ASKS FOR (not what the givens mention). The stem-unit fallback
+# was grabbing the first unit in the givens even when the asked quantity has a
+# different dimension — e.g. "if 30% of a number = 90, what is THE NUMBER?" was
+# stamped "%" from the "30%" given. These match the *requested* quantity.
+_ASK_BARE_RE = re.compile(
+    r"(هذا|ذلك)\s+العدد|ما\s+العدد|ما\s+ذلك\s+العدد|قيمة\s+[سصلxy]"
+)
+_ASK_PERCENT_RE = re.compile(
+    r"النسبة\s+المئوية|كم\s+بالمئة|بالمائة|ما\s+النسبة"
+)
+
+# Sentinel distinct from None so callers can tell "asked for a bare number"
+# (force no unit) apart from "no opinion" (fall through to other heuristics).
+_FORCE_BARE = "\x00bare"
+
+def _expected_unit_from_ask(question: str) -> Optional[str]:
+    """The unit implied by what the question ASKS to output, or None if the ask
+    gives no signal. Returns _FORCE_BARE when the ask is explicitly for a plain
+    number/count so no stray unit gets stamped on."""
+    if not question:
+        return None
+    if _ASK_PERCENT_RE.search(question):
+        return "%"
+    if _ASK_BARE_RE.search(question):
+        return _FORCE_BARE
+    return None
+
 def enforce_units_on_options(correct: str, options: Dict[str, str],
                              question: str = "") -> Dict[str, str]:
     """Force all options to share ONE canonical unit form (all-unit or all-bare).
 
-    Canonical unit priority: the correct answer -> majority of options -> the
-    question stem. Numeric options get the unit imposed; options already carrying
-    a (possibly variant) unit are normalized to the canonical token. Non-numeric
-    options (expressions, words) are left untouched.
+    Canonical unit priority: what the question ASKS for -> the correct answer ->
+    majority of options -> a unit mentioned in the stem. Numeric options get the
+    unit imposed; options already carrying a (possibly variant) unit are normalized
+    to the canonical token. Non-numeric options (expressions, words) are left
+    untouched.
     """
-    unit = extract_unit_from_answer(correct)
+    # 1. Honor what the question explicitly asks to output. An explicit "bare
+    #    number / count" ask forces no unit (fixes the "%"-from-givens bug);
+    #    an explicit percentage ask forces "%".
+    ask = _expected_unit_from_ask(question)
+    if ask == _FORCE_BARE:
+        return {k: _strip_known_unit(clean_text(v)) for k, v in options.items()}
+    unit = ask if ask else None
+
+    # 2. Otherwise trust the answer's own unit, then the options', then the stem.
+    if not unit:
+        unit = extract_unit_from_answer(correct)
     if not unit:
         opt_units = [extract_unit_from_answer(v) for v in options.values()]
         opt_units = [u for u in opt_units if u]
@@ -1826,6 +1851,72 @@ def _is_equal_to_correct(d_text: str, correct_text: str) -> bool:
         return True
     return _norm_key(d_text) == _norm_key(correct_text)
 
+def _distractor_also_valid(question: str, distractor: str, correct: str) -> bool:
+    """True if the model judges `distractor` to ALSO be a correct answer to the
+    question (i.e. the question would have two right options). Used as a hard
+    gate to drop such distractors. Conservative: on any solver error, returns
+    False (keep the distractor) so a flaky call never silently drops good ones."""
+    if not question or not distractor:
+        return False
+    if _is_equal_to_correct(distractor, correct):
+        return True  # identical to the key -> obviously "also valid", drop it
+    prompt = (
+        "You are checking a multiple-choice question for AMBIGUITY.\n"
+        "A question must have exactly ONE correct option.\n"
+        "Given the question (with any passage) and a candidate option, decide whether "
+        "the candidate is ALSO a fully correct answer to the question (not just close).\n"
+        "Reply with ONE word only: YES (it is also correct) or NO (it is wrong).\n\n"
+        f"QUESTION:\n{question}\n\n"
+        f"CANDIDATE OPTION: {distractor}\n"
+    )
+    try:
+        # Use the first solver model at temperature 0 for a stable verdict.
+        cfg = SOLVER_MODELS[0]
+        out = gemini_call(prompt, model=cfg["name"], response_mime_type="text/plain",
+                          temperature=0.0)
+        if out.startswith('{"error"'):
+            return False
+        return out.strip().upper().startswith("YES")
+    except Exception:
+        return False
+
+def _verbal_ambiguous(q2: Dict[str, Any]) -> bool:
+    """True if any non-correct option of a verbal MCQ is ALSO a defensible answer
+    (given the passage + question). Catches the 'two correct options' bug."""
+    if not DISTRACTOR_VERIFY:
+        return False
+    ctx = clean_text(q2.get("Context", ""))
+    ques = clean_text(q2.get("Question", ""))
+    if not ques:
+        return False
+    full = (f"النص: {ctx}\n\n" if ctx else "") + ques
+    correct_lbl = str(q2.get("CorrectOption", "")).strip().upper()
+    answer = clean_text(q2.get("Answer", ""))
+    for L in ("A", "B", "C", "D"):
+        if L == correct_lbl:
+            continue
+        opt = clean_text(q2.get(f"Option{L}", ""))
+        if not opt or opt == "[Option not available]":
+            continue
+        if _distractor_also_valid(full, opt, answer):
+            log(f"[Verbal] ambiguous: option {L} ('{opt}') also defensible", level="warning")
+            return True
+    return False
+
+def _drop_also_correct(items: List[Dict[str, str]], question: str,
+                       correct: str) -> List[Dict[str, str]]:
+    """Filter out any distractor the verifier flags as also-correct."""
+    if not (DISTRACTOR_VERIFY and question):
+        return items
+    kept = []
+    for d in items:
+        if _distractor_also_valid(question, d.get("text", ""), correct):
+            log(f"[Distractors] dropped also-correct option: {d.get('text','')}",
+                level="warning")
+            continue
+        kept.append(d)
+    return kept
+
 def _filter_relaxed(raw: List[Dict[str, Any]], correct_text: str) -> List[Dict[str, str]]:
     kept: List[Dict[str, str]] = []
     seen = set()
@@ -2021,13 +2112,16 @@ Return JSON ONLY:
                 raw_list = []
 
             kept = _filter_relaxed(raw_list, c)
+            # Drop any distractor that is ALSO a valid answer (ambiguity gate).
+            kept = _drop_also_correct(kept, q, c)
 
             tries = 0
             while len(kept) < 3 and tries < DISTRACTOR_TOPUP_TRIES:
                 tries += 1
                 avoid = [d["text"] for d in kept] + [c]
                 repl = _generate_one_replacement_gemini(q, c, lang, avoid_texts=avoid)
-                if repl and _norm_key(repl["text"]) not in {_norm_key(d["text"]) for d in kept}:
+                if (repl and _norm_key(repl["text"]) not in {_norm_key(d["text"]) for d in kept}
+                        and not _distractor_also_valid(q, repl["text"], c)):
                     kept.append(repl)
 
             if len(kept) >= 3:
@@ -2044,23 +2138,37 @@ Return JSON ONLY:
 
 def build_mcq_from_3_distractors(correct: str, distractors: List[Dict[str, str]], lang: str,
                                  question: str = "") -> Dict[str, Any]:
-    labels = ["A", "B", "C", "D"]
-    random.shuffle(labels)
+    # Build the four (text, rationale, tag) entries; the first is the correct one.
+    entries = [{"text": correct, "rationale": "", "tag": "", "correct": True}]
+    for d in distractors[:3]:
+        entries.append({
+            "text": d.get("text", ""),
+            "rationale": d.get("rationale", ""),
+            "tag": d.get("misconception_tag", ""),
+            "correct": False,
+        })
+    while len(entries) < 4:
+        entries.append({"text": correct, "rationale": "", "tag": "", "correct": False})
 
-    correct_label = labels[0]
-    dist_labels = labels[1:]
+    # Order the four options. If every option is numeric, sort ascending (low→high)
+    # so students see a natural progression; otherwise shuffle to avoid position bias.
+    nums = [try_num(e["text"]) for e in entries]
+    if all(n is not None for n in nums):
+        order = sorted(range(len(entries)), key=lambda i: nums[i])
+    else:
+        order = list(range(len(entries)))
+        random.shuffle(order)
+    entries = [entries[i] for i in order]
 
-    options = {correct_label: correct}
-    rats = {correct_label: ""}
-    tags = {correct_label: ""}
-
-    for lbl, d in zip(dist_labels, distractors):
-        options[lbl] = d["text"]
-        rats[lbl] = d["rationale"]
-        tags[lbl] = d["misconception_tag"]
-
-    for lbl in ["A", "B", "C", "D"]:
-        options.setdefault(lbl, correct if lbl == correct_label else "")
+    label_order = ["A", "B", "C", "D"]
+    options, rats, tags = {}, {}, {}
+    correct_label = "A"
+    for lbl, e in zip(label_order, entries):
+        options[lbl] = e["text"]
+        rats[lbl] = e["rationale"]
+        tags[lbl] = e["tag"]
+        if e["correct"]:
+            correct_label = lbl
 
     options = enforce_units_on_options(correct, options, question)
     # The displayed answer must match the (now unit-normalized) correct option.
@@ -3456,6 +3564,19 @@ def generate_valid_verbal_mcq_questions(
             v["target"] = "options"
             v["issues"] = list(v.get("issues", [])) + [
                 "fewer than 4 distinct real options (placeholder present)"]
+    # Deterministic ambiguity gate: a verbal question where a distractor is ALSO a
+    # defensible answer (reviewer's Q18: both ج and د correct) must regenerate.
+    if DISTRACTOR_VERIFY:
+        with ThreadPoolExecutor(max_workers=min(len(merged_list),
+                                                _MAX_CONCURRENT_API_CALLS)) as ex:
+            ambiguous = list(ex.map(_verbal_ambiguous, merged_list))
+        for i, amb in enumerate(ambiguous):
+            if amb:
+                v = verdicts[i]
+                v["pass"] = False
+                v["target"] = "options"
+                v["issues"] = list(v.get("issues", [])) + [
+                    "more than one option is a defensible correct answer (ambiguous)"]
     fail_idx = [i for i, v in enumerate(verdicts) if not v.get("pass", True)]
     if fail_idx:
         log(f"[critic] Verbal: {len(fail_idx)}/{len(merged_list)} failed, regenerating")

@@ -35,6 +35,47 @@
   .chip.lafzi{background:#eef2ff;color:#4338ca}
   .q-text{font-size:18px;font-weight:700;line-height:2;margin:6px 0 14px}
   .passage{background:#f8fafc;border-right:3px solid var(--accent2);border-radius:10px;padding:14px 18px;margin-bottom:14px;line-height:2;color:#334155}
+  .type-header{background:#f1f5f9;border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:22px 0 14px}
+  .type-title{font-weight:800;font-size:18px;color:var(--accent2);margin-bottom:6px;text-align:center}
+  .type-instr{line-height:1.9;color:#475569;font-size:14px}
+  sup{font-size:.75em;vertical-align:super;line-height:0}
+  /* proper square-root radical, isolated LTR so RTL never flips √ to the wrong side */
+  /* √ isolated LTR so RTL never flips it to the wrong side; no overline */
+  .rad{direction:ltr;unicode-bidi:isolate;white-space:nowrap}
+  .rad-n{margin-inline-start:.05em}
+  /* stacked fraction: numerator over bar over denominator */
+  .frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;
+        direction:ltr;unicode-bidi:isolate;margin:0 .12em;line-height:1.05;font-size:.95em}
+  .fr-n{padding:0 .3em;border-bottom:1.5px solid currentColor}
+  .fr-d{padding:0 .3em}
+
+  /* ===== post-exam topic analysis report ===== */
+  .analysis{margin-top:26px;text-align:right;direction:rtl}
+  .an-title{font-size:20px;font-weight:800;color:var(--accent2,#1d6a9c);margin-bottom:14px;border-bottom:2px solid var(--line);padding-bottom:8px}
+  .an-summary{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+  @media(max-width:560px){.an-summary{grid-template-columns:1fr}}
+  .an-col{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:14px}
+  .an-col-h{font-weight:800;font-size:14px;margin-bottom:10px}
+  .an-col-h.ok{color:#047857}.an-col-h.bad{color:#b91c1c}
+  .an-chip{display:flex;justify-content:space-between;gap:8px;padding:7px 11px;border-radius:8px;margin-bottom:6px;font-size:13.5px}
+  .an-chip.ok{background:#ecfdf5;color:#065f46}.an-chip.bad{background:#fef2f2;color:#991b1b}
+  .an-muted{color:var(--muted,#64748b);font-size:13px}
+  .an-cat{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+  .an-cat-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .an-cat-name{font-weight:800;font-size:16px}
+  .an-cat-tier{font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px}
+  .an-row{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:13.5px}
+  .an-cat-row{margin-top:0;margin-bottom:12px}
+  .an-sub{flex:0 0 40%;color:#334155}
+  .an-bar{flex:1;height:9px;border-radius:6px;background:#eef2f7;overflow:hidden}
+  .an-fill{height:100%;border-radius:6px}
+  .an-pct{font-variant-numeric:tabular-nums;font-weight:700;min-width:40px;text-align:left}
+  .an-frac{color:var(--muted,#64748b);font-variant-numeric:tabular-nums;min-width:46px;text-align:left}
+  .t-exc{color:#047857}.an-fill.t-exc{background:#10b981}.an-cat-tier.t-exc{background:#ecfdf5;color:#047857}
+  .t-good{color:#0369a1}.an-fill.t-good{background:#0ea5e9}.an-cat-tier.t-good{background:#eff6ff;color:#0369a1}
+  .t-mid{color:#b45309}.an-fill.t-mid{background:#f59e0b}.an-cat-tier.t-mid{background:#fffbeb;color:#b45309}
+  .t-low{color:#b91c1c}.an-fill.t-low{background:#ef4444}.an-cat-tier.t-low{background:#fef2f2;color:#b91c1c}
+  .an-note{margin-top:8px;color:var(--muted,#64748b);font-size:12.5px;line-height:1.7}
   .q-image-wrap{display:flex;justify-content:center;margin:6px 0 16px}
   .q-image{max-width:100%;max-height:420px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:6px;display:block}
   .opt{border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:10px;cursor:pointer;display:flex;gap:12px;align-items:center;transition:.15s}
@@ -106,6 +147,52 @@
 const AR_DIGITS = ["٠","١","٢","٣","٤","٥","٦","٧","٨","٩"];
 const arNum = n => String(n).split("").map(c => /\d/.test(c) ? AR_DIGITS[+c] : c).join("");
 const OPT_LETTERS = {A:"أ", B:"ب", C:"ج", D:"د"};
+
+// Arabic labels for the post-exam topic analysis report.
+const CAT_AR = {
+  "Arithmetic": "الحساب",
+  "Geometry": "الهندسة",
+  "Data Interpretation & Reasoning": "تحليل البيانات والاستدلال",
+  "Algebra": "الجبر",
+  "Analogies & Word Relationships": "التناظر اللفظي",
+  "Sentence Completion": "إكمال الجمل",
+  "Reading Comprehension": "استيعاب المقروء",
+};
+const SUBCAT_AR = {
+  "Tables/Charts/Graphs": "الجداول والرسوم البيانية",
+  "Area, Perimeter, Volume, Surface Area": "المساحة والمحيط والحجم",
+  "Angles & Triangles": "الزوايا والمثلثات",
+  "Circles (Arcs, Chords, Tangents)": "الدوائر (الأقواس والأوتار والمماسات)",
+  "Quadrilaterals & Polygons": "الأشكال الرباعية والمضلعات",
+  "Coordinate Geometry": "الهندسة الإحداثية",
+  "Word Problems (Rate/Time/Work, Mixture, Age, Profit-Loss)": "المسائل اللفظية (السرعة والزمن والعمل والربح)",
+  "Ratios & Proportions": "النسبة والتناسب",
+  "Percentages": "النسبة المئوية",
+  "Sequences & Series": "الأنماط والمتتابعات",
+  "Fractions & Decimals": "الكسور",
+  "Powers & Roots": "الأسس والجذور",
+  "Logical/Pattern Reasoning": "الاستدلال المنطقي",
+  "Opposites": "التضاد",
+  "Synonyms": "الترادف",
+  "Object and part of the whole": "الجزء والكل",
+  "Object and location": "الشيء والمكان",
+  "Cause–Effect": "السبب والنتيجة",
+  "Function/Use": "الوظيفة والاستعمال",
+  "Performer and action": "الفاعل والفعل",
+  "Vocabulary-in-Context": "المفردة في السياق",
+  "Logical Connector": "أدوات الربط المنطقي",
+  "Inference": "الاستنتاج",
+};
+const catAr = c => CAT_AR[c] || c || "غير مصنّف";
+const subAr = s => SUBCAT_AR[s] || s || "عام";
+
+// Performance tier from a percentage (colour + Arabic label).
+function tier(pct){
+  if(pct >= 80) return {cls:"t-exc", label:"ممتاز"};
+  if(pct >= 60) return {cls:"t-good", label:"جيد"};
+  if(pct >= 40) return {cls:"t-mid", label:"يحتاج إلى تحسين"};
+  return {cls:"t-low", label:"ضعيف"};
+}
 
 let EXAM = null;
 let cur = 0;                 // current section index
@@ -181,12 +268,53 @@ function loadSection(){
     `عدد الأسئلة: ${arNum(sec.count)}   ·   القسم ${arNum(sec.index)} من ${arNum(EXAM.sections.length)}`;
   const box = document.getElementById("questions");
   box.innerHTML = "";
-  sec.questions.forEach(q => box.appendChild(renderQuestion(q)));
+  let lastType = null;
+  sec.questions.forEach(q => {
+    if(q.qtype && q.qtype !== lastType){
+      box.appendChild(renderTypeHeader(q));   // instruction box per question type
+      lastType = q.qtype;
+    }
+    box.appendChild(renderQuestion(q));
+  });
   updateAnsweredNote();
   document.getElementById("finishBtn").textContent =
     (cur === EXAM.sections.length - 1) ? "إنهاء الاختبار" : "إنهاء القسم";
   window.scrollTo(0,0);
   startTimer(sec.time_min * 60);
+}
+
+// Instruction box that precedes each question-type group (real-paper style).
+function renderTypeHeader(q){
+  const box = document.createElement("div");
+  box.className = "type-header";
+  box.innerHTML = `<div class="type-title">${escapeHtml(q.qtype_title||"")}</div>`
+    + (q.qtype_instruction ? `<div class="type-instr">${escapeHtml(q.qtype_instruction)}</div>` : "");
+  return box;
+}
+
+// Convert power/root markup to real math notation while escaping everything else.
+// Powers: x^2 or x<sup>2</sup> -> superscript. Roots: √ and sqrt(n) -> √.
+function formatMath(s){
+  let out = escapeHtml(s || "");
+  // normalize the word form / sqrt() to the √ symbol first
+  out = out.replace(/\bsqrt\s*\(\s*([^)]*?)\s*\)/gi, "√($1)");
+  // caret exponents: base^3 or ^(3) -> <sup>
+  out = out.replace(/\^\(\s*([^)]*?)\s*\)/g, "<sup>$1</sup>");
+  out = out.replace(/\^([0-9٠-٩]+)/g, "<sup>$1</sup>");
+  // pre-escaped <sup> markup from the generator (escapeHtml turned it into &lt;sup&gt;)
+  out = out.replace(/&lt;sup&gt;(.*?)&lt;\/sup&gt;/gi, "<sup>$1</sup>");
+  // Radicals: render √ as a real radical (symbol + vinculum over the operand),
+  // wrapped in an LTR isolate. Without this, in an RTL Arabic sentence the bare
+  // "√" is reordered to the WRONG side of its digits (e.g. "√١٤٤" showed as "١٤٤√").
+  out = out.replace(/√\s*\(([^)]*)\)/g,
+    '<span class="rad" dir="ltr">√<span class="rad-n">$1</span></span>');
+  out = out.replace(/√\s*([0-9٠-٩]+(?:\.[0-9٠-٩]+)?)/g,
+    '<span class="rad" dir="ltr">√<span class="rad-n">$1</span></span>');
+  // Fractions a/b -> stacked (numerator over bar over denominator). Operands are
+  // short digit/variable runs (e.g. ١/٢, س/ص, ٢س/٣); avoids matching ratios ":".
+  out = out.replace(/([0-9٠-٩ء-ي]{1,4})\s*\/\s*([0-9٠-٩ء-ي]{1,4})/g,
+    '<span class="frac" dir="ltr"><span class="fr-n">$1</span><span class="fr-d">$2</span></span>');
+  return out;
 }
 
 function renderQuestion(q){
@@ -197,8 +325,8 @@ function renderQuestion(q){
       <span class="q-num">السؤال ${arNum(q.qno)}</span>
       <span class="chip ${isK?'kammi':'lafzi'}">${isK?'كمي':'لفظي'}</span>
     </div>`;
-  if(q.context) html += `<div class="passage">${escapeHtml(q.context)}</div>`;
-  html += `<div class="q-text">${escapeHtml(q.question)}</div>`;
+  if(q.context) html += `<div class="passage">${formatMath(q.context)}</div>`;
+  html += `<div class="q-text">${formatMath(q.question)}</div>`;
   if(q.image_path){
     html += `<div class="q-image-wrap"><img class="q-image" src="/${q.image_path}" alt="figure" onerror="this.parentNode.remove()"></div>`;
   }
@@ -206,7 +334,7 @@ function renderQuestion(q){
     const v = q.options[L];
     if(!v) return;
     html += `<div class="opt" data-q="${q.qno}" data-opt="${L}" onclick="pick(${q.qno},'${L}',this)">
-        <span class="lt">${OPT_LETTERS[L]}</span><span>${escapeHtml(v)}</span></div>`;
+        <span class="lt">${OPT_LETTERS[L]}</span><span>${formatMath(v)}</span></div>`;
   });
   card.innerHTML = html;
   return card;
@@ -273,7 +401,9 @@ function showResults(){
     html += `<div class="res-row"><span>${s.title}</span>
       <span class="${s.correct/s.total>=0.5?'badge-ok':'badge-bad'}">${arNum(s.correct)} / ${arNum(s.total)}</span></div>`;
   });
-  html += `</div>
+  html += `</div>`;
+  html += buildAnalysis();
+  html += `
     <div style="margin-top:18px">
       <button class="btn-ghost" onclick="toggleReview()" id="reviewBtn">مراجعة الإجابات</button>
       <button class="btn" onclick="location.reload()">اختبار جديد</button>
@@ -282,6 +412,66 @@ function showResults(){
   const r = document.getElementById("results");
   r.innerHTML = html; r.classList.remove("hidden");
   window.scrollTo(0,0);
+}
+
+// Per-topic performance analysis (category -> subcategory), Arabic.
+function buildAnalysis(){
+  const cats = {};   // cat -> {c,t, subs:{sub:{c,t}}}
+  EXAM.sections.forEach(sec => sec.questions.forEach(q => {
+    const cat = q.category || "", sub = q.subcat || "";
+    const ok = answers[q.qno] && answers[q.qno] === q.correct;
+    const C = cats[cat] || (cats[cat] = {c:0, t:0, subs:{}});
+    C.t++; if(ok) C.c++;
+    const S = C.subs[sub] || (C.subs[sub] = {c:0, t:0});
+    S.t++; if(ok) S.c++;
+  }));
+
+  // Flat list of subtopics for strengths / weaknesses (need >=2 questions).
+  const flat = [];
+  Object.entries(cats).forEach(([cat, C]) =>
+    Object.entries(C.subs).forEach(([sub, S]) =>
+      flat.push({cat, sub, ...S, pct: Math.round(100*S.c/S.t)})));
+  const rated = flat.filter(x => x.t >= 2);
+  const strengths = rated.filter(x => x.pct >= 70).sort((a,b)=>b.pct-a.pct).slice(0,3);
+  const weak = rated.filter(x => x.pct < 50).sort((a,b)=>a.pct-b.pct).slice(0,3);
+
+  const bar = (c,t) => {
+    const p = t ? Math.round(100*c/t) : 0, tr = tier(p);
+    return `<div class="an-bar"><div class="an-fill ${tr.cls}" style="width:${p}%"></div></div>
+      <span class="an-pct ${tr.cls}">${arNum(p)}%</span>
+      <span class="an-frac">${arNum(c)}/${arNum(t)}</span>`;
+  };
+
+  let h = `<div class="analysis"><div class="an-title">تحليل الأداء حسب المهارات</div>`;
+
+  // Summary chips: strengths + areas to improve
+  h += `<div class="an-summary">`;
+  h += `<div class="an-col"><div class="an-col-h ok">أبرز نقاط قوتك</div>`;
+  h += strengths.length
+    ? strengths.map(x=>`<div class="an-chip ok">${subAr(x.sub)} <b>${arNum(x.pct)}%</b></div>`).join("")
+    : `<div class="an-muted">لا توجد مهارة بارزة بعد — واصل التدرّب.</div>`;
+  h += `</div><div class="an-col"><div class="an-col-h bad">مهارات تحتاج إلى تحسين</div>`;
+  h += weak.length
+    ? weak.map(x=>`<div class="an-chip bad">${subAr(x.sub)} <b>${arNum(x.pct)}%</b></div>`).join("")
+    : `<div class="an-muted">أداء متوازن — لا توجد نقاط ضعف واضحة.</div>`;
+  h += `</div></div>`;
+
+  // Detailed breakdown: each category with its subtopics
+  const order = Object.entries(cats).sort((a,b)=> (a[1].c/a[1].t) - (b[1].c/b[1].t));
+  order.forEach(([cat, C]) => {
+    h += `<div class="an-cat"><div class="an-cat-head">
+      <span class="an-cat-name">${catAr(cat)}</span>
+      <span class="an-cat-tier ${tier(Math.round(100*C.c/C.t)).cls}">${tier(Math.round(100*C.c/C.t)).label}</span></div>
+      <div class="an-row an-cat-row">${bar(C.c, C.t)}</div>`;
+    Object.entries(C.subs).sort((a,b)=>(a[1].c/a[1].t)-(b[1].c/b[1].t)).forEach(([sub,S])=>{
+      h += `<div class="an-row"><span class="an-sub">${subAr(sub)}</span>${bar(S.c,S.t)}</div>`;
+    });
+    h += `</div>`;
+  });
+
+  h += `<div class="an-note">النسبة المئوية تمثّل الإجابات الصحيحة في كل مهارة. ركّز على المهارات ذات اللون الأحمر لرفع نتيجتك.</div>`;
+  h += `</div>`;
+  return h;
 }
 
 function toggleReview(){
@@ -305,8 +495,8 @@ function buildReview(){
           <span class="q-num">السؤال ${arNum(q.qno)}</span>
           <span class="rv-tag ${right?'ok':'bad'}">${right?'صحيحة':(chosen?'خاطئة':'لم تُجب')}</span>
         </div>`;
-      if(q.context) html += `<div class="passage">${escapeHtml(q.context)}</div>`;
-      html += `<div class="rv-q">${escapeHtml(q.question)}</div>`;
+      if(q.context) html += `<div class="passage">${formatMath(q.context)}</div>`;
+      html += `<div class="rv-q">${formatMath(q.question)}</div>`;
       if(q.image_path) html += `<img class="rv-img" src="/${q.image_path}" onerror="this.remove()">`;
       ["A","B","C","D"].forEach(L=>{
         const v = q.options[L]; if(!v) return;
@@ -316,9 +506,9 @@ function buildReview(){
         let mark = "";
         if(isCorrect) mark = `<span class="rv-mark ok">الإجابة الصحيحة</span>`;
         else if(isChosenBad) mark = `<span class="rv-mark bad">إجابتك</span>`;
-        html += `<div class="${cls}"><span class="lt">${OPT_LETTERS[L]}</span><span>${escapeHtml(v)}</span>${mark}</div>`;
+        html += `<div class="${cls}"><span class="lt">${OPT_LETTERS[L]}</span><span>${formatMath(v)}</span>${mark}</div>`;
       });
-      if(q.explanation) html += `<div class="rv-explain"><b>الشرح:</b> ${escapeHtml(q.explanation)}</div>`;
+      if(q.explanation) html += `<div class="rv-explain"><b>الشرح:</b> ${formatMath(q.explanation)}</div>`;
       html += `</div>`;
     });
   });
