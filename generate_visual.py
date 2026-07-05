@@ -68,9 +68,6 @@ ARABIC_FONT_CANDIDATES = [
     "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
     "/System/Library/Fonts/Supplemental/Tahoma.ttf",
     "/System/Library/Fonts/GeezaPro.ttc",
-    "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf",
-    "/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
 ]
 
 _AR_FONT = None
@@ -285,7 +282,7 @@ def _classify_call(prompt: str, max_retries: int = 5) -> str:
     for attempt in range(1, max_retries + 1):
         try:
             with gen._api_semaphore:
-                resp = _img_client().models.generate_content(
+                resp = _img_client.models.generate_content(
                     model=CLASSIFIER_MODEL, contents=prompt, config=cfg
                 )
             return resp.text or "{}"
@@ -299,7 +296,9 @@ def _classify_call(prompt: str, max_retries: int = 5) -> str:
 
 
 # Latin -> Arabic vertex-letter map (Qudrat convention: أ ب ج د ...; center م).
-_AR_LETTER = {
+# NOTE: distinct name from _AR_LETTER (the compiled regex above) — reusing that
+# name here silently overwrote the regex, breaking _ar() on all Arabic text.
+_AR_VERTEX = {
     "A": "أ", "B": "ب", "C": "ج", "D": "د", "E": "ه", "F": "و",
     "G": "ز", "H": "ح", "K": "ك", "L": "ل", "N": "ن", "O": "م", "M": "م",
 }
@@ -311,8 +310,8 @@ def _arabize_label(s):
     if s is None:
         return s
     t = str(s).strip()
-    if len(t) == 1 and t.upper() in _AR_LETTER:
-        return _AR_LETTER[t.upper()]
+    if len(t) == 1 and t.upper() in _AR_VERTEX:
+        return _AR_VERTEX[t.upper()]
     return s
 
 
@@ -1211,15 +1210,7 @@ def render_geometry(spec, out_path):
 # ============================================================
 # 2b. GEMINI IMAGE RENDERER (geometry / science / free figures)
 # ============================================================
-# Lazy: don't build the image client at import (a serve-only deploy has no key).
-_img_client_obj = None
-
-
-def _img_client():
-    global _img_client_obj
-    if _img_client_obj is None:
-        _img_client_obj = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-    return _img_client_obj
+_img_client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
 
 # When True, skip the rate-limited Gemini image model entirely. Charts go to
@@ -1249,7 +1240,7 @@ def render_gemini_image(prompt: str, out_path: Path, max_retries: int = 4) -> bo
     import time
     for attempt in range(1, max_retries + 1):
         try:
-            resp = _img_client().models.generate_content(
+            resp = _img_client.models.generate_content(
                 model=IMAGE_MODEL, contents=full
             )
             for cand in (resp.candidates or []):
@@ -1309,7 +1300,7 @@ def vision_critique_figure(image_path: Path, question: str, answer: str,
     )
     try:
         with gen._api_semaphore:
-            resp = _img_client().models.generate_content(
+            resp = _img_client.models.generate_content(
                 model=VISION_CRITIC_MODEL,
                 contents=[
                     genai.types.Part.from_bytes(data=data, mime_type="image/png"),

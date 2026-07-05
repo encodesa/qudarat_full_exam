@@ -229,7 +229,8 @@ def _build_options(correct: str, distractors: List[str], rng: random.Random,
     return row
 
 
-def _assemble_row(question, answer, options, subcat, program, image_path, lang):
+def _assemble_row(question, answer, options, subcat, program, image_path, lang,
+                  annotations=None, hide=None):
     row = {k: "" for k in _ROW_KEYS}
     row.update(options)
     row["Question"] = question
@@ -244,7 +245,13 @@ def _assemble_row(question, answer, options, subcat, program, image_path, lang):
     row["NeedsImage"] = True
     row["RenderMethod"] = "geometry"
     row["ImagePath"] = image_path
-    row["ImageSpec"] = json.dumps({"program": program}, ensure_ascii=False)
+    # Store program + annotations + hide so the figure can be re-rendered later
+    # (e.g. after a label-placement fix) without regenerating the whole exam.
+    row["ImageSpec"] = json.dumps({
+        "program": program,
+        "annotations": annotations or [],
+        "hide": sorted(hide) if hide else [],
+    }, ensure_ascii=False)
     return row
 
 
@@ -881,6 +888,183 @@ def _sc_rhombus_perimeter(rng, lang):
                distractors=dist, subcat="Area, Perimeter, Volume, Surface Area", hide=set())
 
 
+# ============================================================
+# HARD / COMPOSITE SCENARIOS (multi-step, inscribed, composite areas)
+# ============================================================
+def _sc_square_in_circle(rng, lang):
+    """Square inscribed in a circle: diagonal = 2R, so area = 2R². Multi-step
+    (must connect radius -> diagonal -> side/area)."""
+    R = rng.choice([4, 5, 6, 8, 10])
+    prog = [
+        {"op": "point", "name": "م", "x": 0, "y": 0},
+        {"op": "circle", "name": "k", "center": "م", "r": R},
+        {"op": "point_on_circle", "name": "أ", "circle": "k", "theta": 45},
+        {"op": "point_on_circle", "name": "ب", "circle": "k", "theta": 135},
+        {"op": "point_on_circle", "name": "ج", "circle": "k", "theta": 225},
+        {"op": "point_on_circle", "name": "د", "circle": "k", "theta": 315},
+        {"op": "polygon", "name": "sq", "verts": ["أ", "ب", "ج", "د"]},
+        {"op": "segment", "name": "rad", "a": "م", "b": "أ"},
+    ]
+    ans = 2 * R * R
+    annotations = [{"type": "side", "a": "م", "b": "أ", "text": ar_digits(R)}]
+    ask = {"figure": "مربع أبجد مرسوم داخل دائرة مركزها م، وجميع رؤوسه على الدائرة",
+           "givens": [f"نصف قطر الدائرة {ar_digits(R)}"],
+           "ask": "ما مساحة المربع؟"}
+    dist = [fmt_num(R * R, lang), fmt_num(4 * R * R, lang), fmt_num(R * R * 2 + R, lang)]
+    return dict(program=prog, measure={"op": "area_polygon", "verts": ["أ", "ب", "ج", "د"]},
+               annotations=annotations, ask=ask, answer=fmt_num(ans, lang),
+               distractors=dist, subcat="Circles (Arcs, Chords, Tangents)", hide=set())
+
+
+def _sc_thales_semicircle(rng, lang):
+    """Right triangle inscribed in a semicircle (Thales): the diameter is the
+    hypotenuse, the angle at the third vertex is 90°. Given the two legs, find the
+    area — student must recognize the right angle from the semicircle."""
+    a, b, c = rng.choice([(3, 4, 5), (6, 8, 10), (5, 12, 13), (8, 6, 10), (9, 12, 15)])
+    # أ, ب are ends of the diameter; ج on the circle with legs أج=a, بج=b
+    cx, cy = a * a / c, a * b / c
+    prog = [
+        {"op": "point", "name": "أ", "x": 0, "y": 0},
+        {"op": "point", "name": "ب", "x": c, "y": 0},
+        {"op": "point", "name": "م", "x": c / 2.0, "y": 0},
+        {"op": "circle", "name": "k", "center": "م", "r": c / 2.0},
+        {"op": "point", "name": "ج", "x": cx, "y": cy},
+        {"op": "polygon", "name": "T", "verts": ["أ", "ب", "ج"]},
+    ]
+    ans = 0.5 * a * b
+    annotations = [
+        {"type": "right_angle", "vertex": "ج", "a": "أ", "b": "ب"},
+        {"type": "side", "a": "أ", "b": "ج", "text": ar_digits(a)},
+        {"type": "side", "a": "ب", "b": "ج", "text": ar_digits(b)},
+    ]
+    ask = {"figure": "المثلث أبج مرسوم داخل دائرة، والوتر أب يمرّ بالمركز م (قطر الدائرة)",
+           "givens": [f"الضلع أج = {ar_digits(a)}، والضلع بج = {ar_digits(b)}"],
+           "ask": "ما مساحة المثلث أبج؟"}
+    dist = [fmt_num(a * b, lang), fmt_num(0.5 * a * c, lang), fmt_num(a + b, lang)]
+    return dict(program=prog, measure={"op": "area_polygon", "verts": ["أ", "ب", "ج"]},
+               annotations=annotations, ask=ask, answer=fmt_num(ans, lang),
+               distractors=dist, subcat="Circles (Arcs, Chords, Tangents)", hide=set())
+
+
+def _sc_annulus_area(rng, lang):
+    """Area of a ring (annulus) between two concentric circles = π(R² − r²)."""
+    r = rng.choice([2, 3, 4, 5])
+    R = r + rng.choice([2, 3, 4])
+    prog = [
+        {"op": "point", "name": "م", "x": 0, "y": 0},
+        {"op": "circle", "name": "big", "center": "م", "r": R},
+        {"op": "circle", "name": "small", "center": "م", "r": r},
+        {"op": "point_on_circle", "name": "أ", "circle": "big", "theta": 0},
+        {"op": "point_on_circle", "name": "ب", "circle": "small", "theta": 90},
+        {"op": "segment", "name": "rad1", "a": "م", "b": "أ"},
+        {"op": "segment", "name": "rad2", "a": "م", "b": "ب"},
+    ]
+    coeff = R * R - r * r
+    annotations = [
+        {"type": "shade", "outer": {"circle": "big"}, "holes": [{"circle": "small"}]},
+        {"type": "side", "a": "م", "b": "أ", "text": ar_digits(R)},
+        {"type": "side", "a": "م", "b": "ب", "text": ar_digits(r)},
+    ]
+    ask = {"figure": "دائرتان متحدتا المركز م، والمنطقة المظللة هي الحلقة بينهما",
+           "givens": [f"نصف قطر الدائرة الكبرى {ar_digits(R)} والصغرى {ar_digits(r)}"],
+           "ask": "ما مساحة المنطقة المظللة بدلالة ط؟"}
+    dist = [fmt_pi(R * R, lang), fmt_pi(r * r, lang), fmt_pi((R - r) ** 2, lang)]
+    return dict(program=prog, measure={"op": "const", "value": math.pi * coeff},
+               annotations=annotations, ask=ask, answer=fmt_pi(coeff, lang),
+               distractors=dist, subcat="Circles (Arcs, Chords, Tangents)", hide=set())
+
+
+def _sc_rhombus_from_diagonals(rng, lang):
+    """Rhombus given both diagonals; area = ½·d₁·d₂. Both diagonals drawn."""
+    d1 = rng.choice([6, 8, 10, 12])
+    d2 = rng.choice([8, 12, 14, 16])
+    prog = [
+        {"op": "point", "name": "أ", "x": -d1 / 2.0, "y": 0},
+        {"op": "point", "name": "ج", "x": d1 / 2.0, "y": 0},
+        {"op": "point", "name": "ب", "x": 0, "y": -d2 / 2.0},
+        {"op": "point", "name": "د", "x": 0, "y": d2 / 2.0},
+        {"op": "polygon", "name": "rh", "verts": ["أ", "ب", "ج", "د"]},
+        {"op": "segment", "name": "diag1", "a": "أ", "b": "ج"},
+        {"op": "segment", "name": "diag2", "a": "ب", "b": "د"},
+    ]
+    ans = 0.5 * d1 * d2
+    # NOTE: don't label the diagonals on the figure — each diagonal's midpoint is
+    # the center, so both labels would collide there (and on the right-angle mark).
+    # The diagonal lengths are stated in the stem instead.
+    annotations = []
+    ask = {"figure": "معيّن أبجد قطراه أج و بد متعامدان ويتقاطعان في المنتصف",
+           "givens": [f"طول القطر أج = {ar_digits(d1)}، وطول القطر بد = {ar_digits(d2)}"],
+           "ask": "ما مساحة المعيّن؟"}
+    dist = [fmt_num(d1 * d2, lang), fmt_num(0.5 * (d1 + d2), lang), fmt_num(d1 * d2 / 4.0, lang)]
+    return dict(program=prog, measure={"op": "area_polygon", "verts": ["أ", "ب", "ج", "د"]},
+               annotations=annotations, ask=ask, answer=fmt_num(ans, lang),
+               distractors=dist, subcat="Quadrilaterals & Polygons", hide=set())
+
+
+def _sc_l_shape_area(rng, lang):
+    """L-shaped polygon: a big rectangle with a smaller rectangle removed from a
+    corner. Area = W·H − w·h. Student must decompose the composite shape."""
+    W = rng.choice([10, 12, 14])
+    H = rng.choice([8, 9, 10])
+    w = rng.choice([3, 4, 5])
+    h = rng.choice([3, 4, 5])
+    # L-shape vertices (notch cut from top-right corner)
+    prog = [
+        {"op": "point", "name": "أ", "x": 0, "y": 0},
+        {"op": "point", "name": "ب", "x": W, "y": 0},
+        {"op": "point", "name": "ج", "x": W, "y": H - h},
+        {"op": "point", "name": "د", "x": W - w, "y": H - h},
+        {"op": "point", "name": "ه", "x": W - w, "y": H},
+        {"op": "point", "name": "و", "x": 0, "y": H},
+        {"op": "polygon", "name": "L", "verts": ["أ", "ب", "ج", "د", "ه", "و"]},
+    ]
+    ans = W * H - w * h
+    annotations = [
+        {"type": "side", "a": "أ", "b": "ب", "text": ar_digits(W)},
+        {"type": "side", "a": "أ", "b": "و", "text": ar_digits(H)},
+        {"type": "side", "a": "د", "b": "ه", "text": ar_digits(h)},
+        {"type": "side", "a": "د", "b": "ج", "text": ar_digits(w)},
+    ]
+    ask = {"figure": "شكل على هيئة الحرف L، أبعاده الخارجية معطاة وقُطع منه مستطيل صغير من الزاوية",
+           "givens": [f"العرض الكلي {ar_digits(W)} والارتفاع الكلي {ar_digits(H)}؛ "
+                      f"المستطيل المقطوع {ar_digits(w)}×{ar_digits(h)}"],
+           "ask": "ما مساحة الشكل؟"}
+    dist = [fmt_num(W * H, lang), fmt_num(W * H - 2 * w * h, lang), fmt_num(w * h, lang)]
+    return dict(program=prog, measure={"op": "area_polygon",
+                                       "verts": ["أ", "ب", "ج", "د", "ه", "و"]},
+               annotations=annotations, ask=ask, answer=fmt_num(ans, lang),
+               distractors=dist, subcat="Quadrilaterals & Polygons", hide=set())
+
+
+def _sc_altitude_geometric_mean(rng, lang):
+    """Altitude to the hypotenuse of a right triangle: h = √(p·q) where p, q are
+    the two segments the foot divides the hypotenuse into (geometric-mean thm)."""
+    p, q, h = rng.choice([(2, 8, 4), (3, 12, 6), (4, 9, 6), (9, 16, 12), (4, 16, 8)])
+    c = p + q
+    hy = h                                     # altitude length
+    prog = [
+        {"op": "point", "name": "أ", "x": 0, "y": 0},
+        {"op": "point", "name": "ب", "x": c, "y": 0},
+        {"op": "point", "name": "ج", "x": p, "y": hy},
+        {"op": "point", "name": "ح", "x": p, "y": 0},          # foot of the altitude
+        {"op": "polygon", "name": "T", "verts": ["أ", "ب", "ج"]},
+        {"op": "segment", "name": "alt", "a": "ج", "b": "ح"},
+    ]
+    annotations = [
+        {"type": "right_angle", "vertex": "ج", "a": "أ", "b": "ب"},
+        {"type": "right_angle", "vertex": "ح", "a": "أ", "b": "ج"},
+        {"type": "side", "a": "أ", "b": "ح", "text": ar_digits(p)},
+        {"type": "side", "a": "ح", "b": "ب", "text": ar_digits(q)},
+    ]
+    ask = {"figure": "مثلث أبج قائم الزاوية في ج، وجح عمود على الوتر أب",
+           "givens": [f"الوتر مقسوم إلى أح = {ar_digits(p)} و حب = {ar_digits(q)}"],
+           "ask": "ما طول الارتفاع جح؟"}
+    dist = [fmt_num((p + q) / 2.0, lang), fmt_num(p + q, lang), fmt_num(abs(q - p), lang)]
+    return dict(program=prog, measure={"op": "length", "a": "ج", "b": "ح"},
+               annotations=annotations, ask=ask, answer=fmt_num(hy, lang),
+               distractors=dist, subcat="Angles & Triangles", hide=set())
+
+
 SCENARIOS: List[Callable] = [
     _sc_right_triangle_third_side,
     _sc_triangle_area,
@@ -907,12 +1091,74 @@ SCENARIOS: List[Callable] = [
     _sc_parallelogram_perimeter,
     _sc_rectangle_diagonal,
     _sc_rhombus_perimeter,
+    # --- hard / composite scenarios (multi-step, inscribed, composite areas) ---
+    _sc_square_in_circle,
+    _sc_thales_semicircle,
+    _sc_annulus_area,
+    _sc_rhombus_from_diagonals,
+    _sc_l_shape_area,
+    _sc_altitude_geometric_mean,
 ]
 
 
 # ============================================================
 # GENERATOR
 # ============================================================
+def _answer_expected_value(ans) -> Optional[float]:
+    """Numeric value of a PLAIN single-number answer, or None if the answer is
+    symbolic (contains π or an arithmetic expression). Symbolic answers are
+    formatted inconsistently across scenarios (some ops return the π-coefficient,
+    some the evaluated value), so we don't numerically cross-check those — the
+    per-label figure check still applies to them."""
+    s = str(ans).translate(str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")).strip()
+    if "π" in s or "ط" in s or "pi" in s.lower():
+        return None
+    core = re.sub(r"[،,]", "", s)                     # tolerate thousands separators
+    # An expression (two numbers joined by an operator) -> not a plain number.
+    if re.search(r"\d\s*[-+×÷*/]\s*\d", core):
+        return None
+    return _num_from(ans)
+
+
+def _verify_figure(fig, spec: dict, measured: float):
+    """Deterministic consistency gate. Returns (ok, reason).
+
+    1. The declared answer must equal what the kernel measured from the solved
+       coordinates (catches mis-specified scenarios).
+    2. Every numeric side/angle LABEL must equal the corresponding measurement on
+       the figure (catches text/figure contradictions like sides 9،13،15 in the
+       stem while the drawing shows 9،12،15).
+    """
+    def _close(a, b):
+        return abs(a - b) <= 1e-2 * max(1.0, abs(b)) + 1e-2
+
+    exp = _answer_expected_value(spec.get("answer"))
+    if exp is not None and not _close(measured, exp):
+        return False, f"answer {spec.get('answer')} != measured {measured:.4g}"
+
+    for ann in (spec.get("annotations") or []):
+        num = _num_from(ann.get("text", ""))
+        if num is None:
+            continue
+        t = ann.get("type")
+        try:
+            if t == "side":
+                meas = gm.length(fig, ann["a"], ann["b"])
+            elif t == "angle":
+                meas = gm.angle(fig, ann["vertex"], ann["a"], ann["b"])
+            else:
+                continue
+        except Exception:
+            continue  # label references a point we can't measure -> skip, don't fail
+        # angles: tolerate interior/exterior direction ambiguity
+        if t == "angle" and not _close(meas, num):
+            if _close(360.0 - meas, num) or _close(180.0 - meas, num):
+                continue
+        if not _close(meas, num):
+            return False, f"{t} label {num} != figure {meas:.4g} ({ann.get('a','')}{ann.get('b','')})"
+    return True, ""
+
+
 def generate_geometry_questions(num: int, lang: str = "Arabic",
                                 rng: Optional[random.Random] = None,
                                 save: bool = True) -> List[dict]:
@@ -950,6 +1196,12 @@ def generate_geometry_questions(num: int, lang: str = "Arabic",
             gk.sanity_check(fig)
             # VERIFY: measure the answer from solved coordinates
             measured = gm.query(fig, spec["measure"])
+            # Deterministic gate: declared answer == measured, and every numeric
+            # label matches the figure. Reject the scenario on any mismatch.
+            ok_v, reason = _verify_figure(fig, spec, measured)
+            if not ok_v:
+                print(f"[geo_scenarios] rejected {sc.__name__}: {reason}")
+                continue
             # render the figure (givens only; asked quantity hidden)
             fname = f"{uuid.uuid4().hex}.png"
             out_path = cat_dir / fname
@@ -961,7 +1213,8 @@ def generate_geometry_questions(num: int, lang: str = "Arabic",
             question = _synth_prose(spec["ask"], lang) or _fallback_stem(spec["ask"], lang)
             options = _build_options(spec["answer"], spec["distractors"], rng)
             row = _assemble_row(question, spec["answer"], options, spec["subcat"],
-                                spec["program"], str(Path("images") / "Geometry" / fname), lang)
+                                spec["program"], str(Path("images") / "Geometry" / fname), lang,
+                                annotations=spec.get("annotations"), hide=spec.get("hide"))
             row["_measured"] = measured     # debug aid; harmless extra key
             rows.append(row)
         except gk.GeoError:
