@@ -62,10 +62,30 @@ except ImportError:
 if not os.getenv("GOOGLE_API_KEY") and os.getenv("GEMINI_API_KEY"):
     os.environ["GOOGLE_API_KEY"] = os.environ["GEMINI_API_KEY"]
 
-if not os.getenv("GOOGLE_API_KEY"):
-    raise EnvironmentError("GOOGLE_API_KEY not set.")
+# Lazy client: importing this module must NOT require an API key, so a deployment
+# that only SERVES a pre-generated exam boots without one. The key is required only
+# when actually calling the model (generation). Access via _client().
+_client_obj = None
 
-client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+
+def _client():
+    global _client_obj
+    if _client_obj is None:
+        key = os.getenv("GOOGLE_API_KEY")
+        if not key:
+            raise EnvironmentError(
+                "GOOGLE_API_KEY (or GEMINI_API_KEY) not set — required for generation.")
+        _client_obj = genai.Client(api_key=key)
+    return _client_obj
+
+
+class _LazyClient:
+    """Proxy so existing `client.models...` call sites work unchanged."""
+    def __getattr__(self, name):
+        return getattr(_client(), name)
+
+
+client = _LazyClient()
 
 # Limit concurrent Gemini API calls to avoid hitting rate limits (429).
 # gemini-2.5-pro has a low RPM cap; this semaphore ensures at most
